@@ -1,8 +1,15 @@
 from fastapi import FastAPI
+from database.connection import Base, engine
+from app.routers import auth
 
-app = FastAPI(title = "Speaking Agent API")
+# Create tables automatically
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(title="Speaking Agent API")
+
+# Register routers
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 
 @app.get("/")
-def health_check():
-    return {"status": "ok","app" : "Speaking Agent"}
-    
+def root():
+    return {"message": "Speaking Agent API is running"}

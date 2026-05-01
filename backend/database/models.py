@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, Enum
+from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -18,7 +19,7 @@ class MessageRole(enum.Enum):
 class User(Base):
     __tablename__ = "users"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(BIGINT(unsigned=True), primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
     password_hash = Column(String(255))
@@ -31,8 +32,8 @@ class User(Base):
 class Session(Base):
     __tablename__ = "sessions"
     
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    id = Column(BIGINT(unsigned=True), primary_key=True, index=True)
+    user_id = Column(BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False)
     topic = Column(String(255), nullable=False)  # "Business", "Small Talk"
     status = Column(Enum(SessionStatus), default=SessionStatus.IN_PROGRESS)
     duration_seconds = Column(Integer, nullable=True)
@@ -46,8 +47,8 @@ class Session(Base):
 class Message(Base):
     __tablename__ = "messages"
     
-    id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(Integer, ForeignKey("sessions.id"), nullable=False)
+    id = Column(BIGINT(unsigned=True), primary_key=True, index=True)
+    session_id = Column(BIGINT(unsigned=True), ForeignKey("sessions.id"), nullable=False)
     role = Column(Enum(MessageRole), nullable=False)  # USER or ASSISTANT
     text_content = Column(Text, nullable=False)
     audio_url = Column(String(255), nullable=True)  # S3 path later
@@ -60,8 +61,8 @@ class Message(Base):
 class Score(Base):
     __tablename__ = "scores"
     
-    id = Column(Integer, primary_key=True, index=True)
-    message_id = Column(Integer, ForeignKey("messages.id"), nullable=False)
+    id = Column(BIGINT(unsigned=True), primary_key=True, index=True)
+    message_id = Column(BIGINT(unsigned=True), ForeignKey("messages.id"), nullable=False)
     grammar_score = Column(Float, nullable=True)  # 0-100
     pronunciation_score = Column(Float, nullable=True)  # 0-100
     confidence_score = Column(Float, nullable=True)  # 0-100
