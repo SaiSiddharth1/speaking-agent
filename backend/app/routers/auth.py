@@ -1,42 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-
-from database.connection import get_db
-from database.models import User
-from app.schemas.user import UserCreate, UserLogin, Token, UserResponse
+from app.database import get_db
+from app.models.user import User
+from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse
 from app.core.security import hash_password, verify_password, create_access_token
 
 router = APIRouter()
 
-@router.post("/register", response_model=UserResponse)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # Check if email already exists
-    existing = db.query(User).filter(User.email == user_data.email).first()
+@router.post("/register", status_code=201)
+def register(data: RegisterRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
-
-    # Hash password and save
-    new_user = User(
-        email=user_data.email,
-        name=user_data.name,
-        password_hash=hash_password(user_data.password)
+    
+    user = User(
+        email=data.email,
+        full_name=data.full_name,
+        hashed_password=hash_password(data.password)
     )
-    db.add(new_user)
+    db.add(user)
     db.commit()
-    db.refresh(new_user)
-    return new_user
+    return {"message": "User registered successfully"}
 
-@router.post("/login", response_model=Token)
-def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    # Find user
-    user = db.query(User).filter(User.email == user_data.email).first()
-    if not user:
+@router.post("/login", response_model=TokenResponse)
+def login(data: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user or not verify_password(data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    # Verify password
-    if not verify_password(user_data.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    # Create JWT token
-    token = create_access_token(data={"sub": user.email, "user_id": user.id})
+    
+    token = create_access_token({"sub": str(user.id), "email": user.email})
     return {"access_token": token, "token_type": "bearer"}
