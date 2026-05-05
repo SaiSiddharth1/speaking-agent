@@ -75,7 +75,7 @@ export const useAudioRecorder = () => {
   }, [hasPermission]);
 
   const stopRecording = useCallback(async () => {
-    if (!recordingRef.current) return;
+    if (!recordingRef.current) return null;
 
     try {
       // Stop the timer
@@ -97,8 +97,10 @@ export const useAudioRecorder = () => {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
       });
+      return uri;
     } catch (err) {
       console.error('Failed to stop recording:', err);
+      return null;
     }
   }, []);
 

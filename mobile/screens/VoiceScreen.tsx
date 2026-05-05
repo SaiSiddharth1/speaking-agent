@@ -6,9 +6,12 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { RecordButton } from '../components/RecordButton';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
+import { transcribeAudio } from '../services/api';
 
 // Format seconds → "00:12"
 const formatDuration = (seconds: number) => {
@@ -18,6 +21,9 @@ const formatDuration = (seconds: number) => {
 };
 
 export default function VoiceScreen() {
+  const [transcript, setTranscript] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
   const {
     status,
     isRecording,
@@ -31,11 +37,27 @@ export default function VoiceScreen() {
     resetRecording,
   } = useAudioRecorder();
 
-  const handleRecordPress = () => {
+  const handleRecordPress = async () => {
     if (isRecording) {
-      stopRecording();
+      const uri = await stopRecording();
+      if (uri) {
+        handleTranscribe(uri);
+      }
     } else {
+      setTranscript(""); // Clear previous transcript
       startRecording();
+    }
+  };
+
+  const handleTranscribe = async (uri: string) => {
+    setLoading(true);
+    try {
+      const text = await transcribeAudio(uri);
+      setTranscript(text);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,6 +117,24 @@ export default function VoiceScreen() {
 
         {/* Record Button */}
         <RecordButton isRecording={isRecording} onPress={handleRecordPress} />
+
+        {/* Loading Indicator */}
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6366F1" />
+            <Text style={styles.loadingText}>Transcribing your voice...</Text>
+          </View>
+        )}
+
+        {/* Transcript Display */}
+        {transcript ? (
+          <View style={styles.transcriptContainer}>
+            <Text style={styles.transcriptLabel}>Transcript</Text>
+            <ScrollView style={styles.transcriptScroll}>
+              <Text style={styles.transcriptText}>{transcript}</Text>
+            </ScrollView>
+          </View>
+        ) : null}
 
         {/* Action Buttons (after recording) */}
         {status === 'stopped' && recordingUri && (
@@ -274,5 +314,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     overflow: 'hidden',
+  },
+  // ----- Transcription -----
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6366F1',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  transcriptContainer: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 10,
+    maxHeight: 200,
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  transcriptLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  transcriptScroll: {
+    flexGrow: 0,
+  },
+  transcriptText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#374151',
   },
 });
