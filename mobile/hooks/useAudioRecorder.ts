@@ -9,6 +9,7 @@ export const useAudioRecorder = () => {
   const [duration, setDuration] = useState(0);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -64,12 +65,14 @@ export const useAudioRecorder = () => {
       setStatus('recording');
       setDuration(0);
       setRecordingUri(null);
+      setError(null);
 
       // Start duration timer
       timerRef.current = setInterval(() => {
         setDuration((prev) => prev + 1);
       }, 1000);
     } catch (err) {
+      setError('Failed to start recording');
       console.error('Failed to start recording:', err);
     }
   }, [hasPermission]);
@@ -92,6 +95,7 @@ export const useAudioRecorder = () => {
       recordingRef.current = null;
       setRecordingUri(uri ?? null);
       setStatus('stopped');
+      setError(null);
 
       // Reset audio mode so playback works on iOS
       await Audio.setAudioModeAsync({
@@ -99,6 +103,7 @@ export const useAudioRecorder = () => {
       });
       return uri;
     } catch (err) {
+      setError('Failed to stop recording');
       console.error('Failed to stop recording:', err);
       return null;
     }
@@ -155,7 +160,9 @@ export const useAudioRecorder = () => {
     hasPermission,
     duration,
     recordingUri,
+    audioUri: recordingUri, // Alias for Day 9 requirements
     isPlaying,
+    error,
     startRecording,
     stopRecording,
     playRecording,
