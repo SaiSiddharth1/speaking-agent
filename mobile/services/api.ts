@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://192.168.29.37:8000";
+export const API_BASE_URL = "http://192.168.29.37:8000";
 
 export async function transcribeAudio(uri: string): Promise<string> {
   const formData = new FormData();
