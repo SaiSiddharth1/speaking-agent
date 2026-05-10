@@ -9,3 +9,4 @@ passlib[bcrypt]
 python-multipart
 email-validator
 openai-whisper
+groq==1.2.0
