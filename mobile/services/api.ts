@@ -1,35 +1,27 @@
 export const API_BASE_URL = "http://192.168.29.37:8000";
 
-export async function transcribeAudio(uri: string): Promise<string> {
+export const transcribeAudio = async (fileUri: string): Promise<string> => {
   const formData = new FormData();
   
-  // React Native's FormData needs an object with uri, name, and type
-  // We use 'as any' because the TypeScript definition for FormData in RN can be tricky
-  formData.append("file", {
-    uri,
-    name: "audio.m4a",
+  // React Native FormData needs this object shape
+  formData.append("audio", {
+    uri: fileUri,
+    name: "recording.m4a",
     type: "audio/m4a",
   } as any);
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/stt/transcribe`, {
-      method: "POST",
-      body: formData,
-      headers: {
-        'Accept': 'application/json',
-        // 'Content-Type': 'multipart/form-data' is handled automatically when sending FormData
-      },
-    });
+  const response = await fetch(`${API_BASE_URL}/transcribe/`, {
+    method: "POST",
+    body: formData,
+    // Do NOT set Content-Type — let fetch set it with boundary
+  });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Transcription failed");
-    }
-
-    const data = await response.json();
-    return data.transcript;
-  } catch (error) {
-    console.error("API Error (transcribeAudio):", error);
-    throw error;
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Transcription failed:", errorText);
+    throw new Error("Transcription failed");
   }
-}
+  
+  const data = await response.json();
+  return data.transcript;
+};

@@ -10,3 +10,4 @@ python-multipart
 email-validator
 openai-whisper
 groq==1.2.0
+httpx==0.25.1
