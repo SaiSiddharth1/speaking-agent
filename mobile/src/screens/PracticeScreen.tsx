@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, ScrollView } f
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { RecordButton } from '../components/RecordButton';
 import { AudioPlayer } from '../components/AudioPlayer';
-import { transcribeAudio } from '../services/sttService';
+import { transcribeAudio } from '../services/speechApi';
 
 export const PracticeScreen = () => {
   const { isRecording, recordingUri, elapsedSeconds, startRecording, stopRecording } = useAudioRecorder();

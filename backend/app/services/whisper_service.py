@@ -1,15 +1,20 @@
-import whisper
-import os
+from faster_whisper import WhisperModel
+import tempfile, os
 
-# Load ONCE at module level — not inside the function
-model = whisper.load_model("base")
+# Load ONCE at module level — "base" is fast + accurate enough for MVP
+model = WhisperModel("base", device="cpu", compute_type="int8")
 
-def transcribe(file_path: str) -> str:
-    """
-    Transcribe an audio file using OpenAI's Whisper model.
-    """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Audio file not found: {file_path}")
-        
-    result = model.transcribe(file_path)
-    return result["text"].strip()
+def transcribe_audio(file_bytes: bytes, extension: str = "wav") -> str:
+    # Write bytes to a temp file
+    with tempfile.NamedTemporaryFile(
+        delete=False, suffix=f".{extension}"
+    ) as tmp:
+        tmp.write(file_bytes)
+        tmp_path = tmp.name
+
+    try:
+        segments, _ = model.transcribe(tmp_path, language="en")
+        transcript = " ".join(seg.text for seg in segments)
+        return transcript.strip()
+    finally:
+        os.remove(tmp_path)  # Always clean up
