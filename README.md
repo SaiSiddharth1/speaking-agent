@@ -9,6 +9,11 @@ confidence, fluency, grammar, and pronunciation.
 - Database: PostgreSQL
 - AI: Speech-to-text, LLM, Text-to-speech
 
+## Features
+- Real-time Speech-to-Text transcription
+- LLaMA-based AI speaking coach
+- Conversation history tracking
+
 ## Run the Mobile App
 cd mobile
 npx expo start
