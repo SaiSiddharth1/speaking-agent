@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import PracticeScreen from '../src/screens/PracticeScreen';
+import ConversationScreen from '../src/screens/ConversationScreen';
 import RecordingScreen from '../screens/RecordingScreen';
 
 export type RootStackParamList = {
@@ -22,7 +22,7 @@ export default function AppNavigator() {
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen name="Voice" component={PracticeScreen} />
+        <Stack.Screen name="Voice" component={ConversationScreen} />
         <Stack.Screen name="Recording" component={RecordingScreen} />
       </Stack.Navigator>
     </NavigationContainer>
