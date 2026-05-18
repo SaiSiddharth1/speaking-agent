@@ -1,5 +1,7 @@
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from app.services.stt_service import transcribe_audio
+from app.services.groq_service import get_ai_response
 from sqlalchemy.orm import Session
 from app.services.llm_service import get_coach_response
 from app.database import get_db
@@ -10,6 +12,25 @@ import json
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
+
+@router.post("/")
+async def conversation(audio: UploadFile = File(...)):
+    try:
+        contents = await audio.read()
+        
+        # 1. STT — transcribe
+        transcript = await transcribe_audio(contents, audio.filename or "audio.m4a")
+
+        # 2. LLM — get AI response
+        ai_reply = get_ai_response(transcript)
+
+        return {
+            "transcript": transcript,
+            "ai_reply": ai_reply
+        }
+    except Exception as e:
+        logger.error(f"Error in conversation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/session/start", response_model=SessionResponse)
 async def start_session(request: SessionStartRequest, db: Session = Depends(get_db)):
