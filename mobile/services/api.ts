@@ -25,3 +25,30 @@ export const transcribeAudio = async (fileUri: string): Promise<string> => {
   const data = await response.json();
   return data.transcript;
 };
+
+export async function sendAudioToBackend(audioUri: string): Promise<{
+  transcript: string;
+  ai_reply: string;
+}> {
+  const formData = new FormData();
+
+  formData.append("audio", {
+    uri: audioUri,
+    type: "audio/m4a",
+    name: "recording.m4a",
+  } as any);
+
+  const response = await fetch(`${API_BASE_URL}/conversation/`, {
+    method: "POST",
+    body: formData,
+    // NOTE: Do NOT set Content-Type header manually
+    // fetch will set multipart/form-data with boundary automatically
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || "Server error");
+  }
+
+  return response.json();
+}
