@@ -1,0 +1,79 @@
+SPEAKING AGENT - DEVELOPMENT TIMELINE & TECH STACK
+
+==================================================
+WHAT WE HAVE BUILT
+==================================================
+
+Phase 1: Foundation & Authentication
+- Mobile App Frontend (React Native & Expo) initialized.
+- FastAPI Backend initialized with MySQL database connection.
+- Complete User Authentication:
+  * Secure password hashing (bcrypt).
+  * JWT Token generation and validation.
+  * Login & Registration endpoints.
+  * Auth-protected routes using dependency injection.
+
+Phase 2: Voice Recording Foundation
+- Microphone permissions handling in the mobile app.
+- Custom "useAudioRecorder" hook to manage recording states (start, stop, playback).
+- RecordingScreen UI with visual feedback (recording state, timer, processing).
+- Audio file saving and playback logic on the device.
+
+Phase 3: AI Backend Integration
+- Speech-to-Text Pipeline: Handled multipart/form-data audio uploads to the backend.
+- Local Whisper Integration: Built the initial STT service using local Python whisper.
+- LLM English Coach: Integrated Groq API (LLaMA 3) to act as an English coach, returning structured feedback based on the user's spoken transcript.
+
+Phase 4: Cloud STT & Optimization (Day 14)
+- Migrated STT from Local Whisper to Groq Cloud Whisper (whisper-large-v3) for instant transcription.
+- Refactored the frontend to immediately upload audio to the new "/transcribe" endpoint when recording stops.
+- Displayed the AI's transcription natively on the mobile screen.
+
+==================================================
+WHAT WE HAVE CODED (KEY FILES)
+==================================================
+
+Frontend:
+- mobile/screens/PracticeScreen.tsx (Voice interface)
+- mobile/screens/RecordingScreen.tsx (Advanced recording interface)
+- mobile/screens/LoginScreen & RegisterScreen (Auth UI)
+- mobile/hooks/useAudioRecorder.ts (Audio state logic)
+- mobile/services/api.ts (Network requests to backend)
+
+Backend:
+- backend/app/main.py (FastAPI application root)
+- backend/app/routers/auth.py, stt.py, chat.py, transcribe.py (API Endpoints)
+- backend/app/services/stt_service.py (Groq Whisper logic)
+- backend/app/services/llm_service.py (Groq LLaMA logic)
+- backend/app/models/user.py & schemas/user.py (Database models & validation)
+
+==================================================
+AIs & APIs USED
+==================================================
+
+1. Groq API:
+   - Whisper-large-v3: For ultra-fast Speech-to-Text conversion.
+   - LLaMA 3: Acting as the intelligent English Coach.
+2. OpenAI Whisper (Local): Used in the initial proof of concept for STT.
+
+==================================================
+TECH STACK & TOOLS
+==================================================
+
+Frontend:
+- React Native / Expo (v54)
+- TypeScript
+- React Navigation (native-stack)
+- expo-av (Audio Recording)
+
+Backend:
+- Python / FastAPI
+- Uvicorn
+- SQLAlchemy & PyMySQL
+- Pydantic
+- passlib & python-jose (JWT Auth)
+- httpx (Async requests)
+
+Tools:
+- Git & GitHub (Feature branch workflow)
+- cURL / Postman

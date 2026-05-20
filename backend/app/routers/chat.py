@@ -1,23 +1,24 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas.chat import ChatRequest, ChatResponse
-from app.services.llm_service import get_coach_reply
+from pydantic import BaseModel
+from app.services.groq_service import GroqService
 
-router = APIRouter(prefix="/api/chat", tags=["Chat"])
+router = APIRouter()
+groq_service = GroqService()
 
-@router.post("/", response_model=ChatResponse)
-async def chat(request: ChatRequest):
+class ChatRequest(BaseModel):
+    text: str
+
+class ChatResponse(BaseModel):
+    feedback: str
+    original_text: str
+
+@router.post("/chat", response_model=ChatResponse)
+async def get_feedback(request: ChatRequest):
+    if not request.text or not request.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty")
+    
     try:
-        reply = await get_coach_reply(
-            request.user_message,
-            request.conversation_history
-        )
-
-        # Update history to return to frontend
-        updated_history = request.conversation_history + [
-            {"role": "user", "content": request.user_message},
-            {"role": "assistant", "content": reply},
-        ]
-
-        return ChatResponse(reply=reply, updated_history=updated_history)
+        feedback = groq_service.get_coaching_feedback(request.text)
+        return ChatResponse(feedback=feedback, original_text=request.text)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

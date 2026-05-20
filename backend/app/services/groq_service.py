@@ -1,29 +1,34 @@
-import os
 from groq import Groq
-from app.config import settings
+import os
 
-client = Groq(api_key=settings.GROQ_API_KEY)
-
-SYSTEM_PROMPT = """
-You are an expert English speaking coach. 
-Your job is to:
-1. Respond naturally to what the user said
-2. Gently correct any grammar mistakes
-3. Suggest better ways to express their idea
-4. Keep responses short (2-4 sentences max)
-5. Be encouraging and supportive
-
-Always end with a follow-up question to keep the conversation going.
-"""
-
-def get_ai_response(transcript: str) -> str:
-    chat_completion = client.chat.completions.create(
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": transcript}
-        ],
-        model="llama3-70b-8192",
-        max_tokens=200,
-        temperature=0.7
-    )
-    return chat_completion.choices[0].message.content
+class GroqService:
+    def __init__(self):
+        # initialize Groq client with API key from env
+        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    
+    def get_coaching_feedback(self, user_text: str) -> str:
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert English speaking coach. "
+                    "Keep responses SHORT (2-3 sentences max for now). "
+                    "Always be encouraging. "
+                    "Point out 1 grammar issue max. "
+                    "Suggest how to say it better."
+                )
+            },
+            {
+                "role": "user",
+                "content": user_text
+            }
+        ]
+        
+        chat_completion = self.client.chat.completions.create(
+            messages=messages,
+            model="llama3-70b-8192",
+            max_tokens=200,
+            temperature=0.7
+        )
+        
+        return chat_completion.choices[0].message.content
