@@ -9,6 +9,6 @@ passlib[bcrypt]
 python-multipart
 email-validator
 openai-whisper
-groq==1.2.0
+groq==0.9.0
 httpx==0.25.1
 faster-whisper
