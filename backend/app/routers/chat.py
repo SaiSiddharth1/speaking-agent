@@ -8,8 +8,14 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 async def chat(request: ChatRequest):
     try:
         history = [m.model_dump() for m in request.conversation_history] # using model_dump for pydantic v2
+        if not history:
+            raise HTTPException(status_code=400, detail="History cannot be empty.")
+            
+        # The latest user message is the last item in history
+        transcript = history[-1]["content"]
+        prev_history = history[:-1]
         
-        reply = get_ai_response(history)
+        reply = await get_ai_response(transcript, prev_history)
         
         # Append AI reply to history
         updated = list(request.conversation_history) + [

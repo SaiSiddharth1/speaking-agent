@@ -12,7 +12,7 @@ app.include_router(stt.router)
 app.include_router(chat.router)
 app.include_router(transcribe.router)
 app.include_router(speech.router)
-app.include_router(conversation.router)
+app.include_router(conversation.router, prefix="/api/conversation")
 
 
 @app.get("/")

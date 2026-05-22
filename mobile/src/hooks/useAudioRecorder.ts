@@ -37,9 +37,9 @@ export const useAudioRecorder = () => {
     }
   };
 
-  const stopRecording = async () => {
+  const stopRecording = async (): Promise<string | null> => {
     try {
-      if (!recordingRef.current) return;
+      if (!recordingRef.current) return null;
 
       await recordingRef.current.stopAndUnloadAsync();
       const uri = recordingRef.current.getURI();
@@ -48,9 +48,11 @@ export const useAudioRecorder = () => {
 
       setIsRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
+      return uri;
 
     } catch (err) {
       console.error('Stop recording failed:', err);
+      return null;
     }
   };
 

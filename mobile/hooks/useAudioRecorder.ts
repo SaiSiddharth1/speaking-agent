@@ -36,16 +36,18 @@ export function useAudioRecorder() {
     }
   };
 
-  const stopRecording = async () => {
-    if (!recording) return;
+  const stopRecording = async (): Promise<string | null> => {
+    if (!recording) return null;
     try {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
       setAudioUri(uri);
       setRecording(null);
       setIsRecording(false);
+      return uri;
     } catch (err) {
       console.error('Stop recording error:', err);
+      return null;
     }
   };
 

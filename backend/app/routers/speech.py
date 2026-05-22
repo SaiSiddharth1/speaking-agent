@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.services.whisper_service import transcribe_audio
+from app.services.stt_service import transcribe_audio
 import asyncio
 
 router = APIRouter(prefix="/api/speech", tags=["speech"])
@@ -18,10 +18,6 @@ async def transcribe(file: UploadFile = File(...)):
     if len(file_bytes) == 0:
         raise HTTPException(400, "Empty audio file")
 
-    # Run in executor — Whisper is CPU-bound, don't block async loop
-    loop = asyncio.get_event_loop()
-    transcript = await loop.run_in_executor(
-        None, transcribe_audio, file_bytes, "wav"
-    )
+    transcript = await transcribe_audio(file_bytes, "audio.wav")
 
     return { "transcript": transcript, "word_count": len(transcript.split()) }

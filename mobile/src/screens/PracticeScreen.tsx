@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,10 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { Audio } from 'expo-av';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { RecordButton } from '../components/RecordButton';
 import { AudioPlayer } from '../components/AudioPlayer';
-import { transcribeAudio } from '../services/speechApi';
 import { useConversation } from '../hooks/useConversation';
 
 export const PracticeScreen = () => {
@@ -22,12 +22,23 @@ export const PracticeScreen = () => {
     stopRecording,
   } = useAudioRecorder();
   
-  const [sttLoading, setSttLoading] = useState(false);
   const {
     history,
     isLoading: isChatLoading,
-    handleSendMessage,
+    handleSendVoice,
   } = useConversation();
+
+  const replySoundRef = useRef<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (replySoundRef.current) {
+        replySoundRef.current.unloadAsync().catch(err => 
+          console.error('Cleanup reply sound error:', err)
+        );
+      }
+    };
+  }, []);
 
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -39,29 +50,56 @@ export const PracticeScreen = () => {
         handleTranscribe(uri);
       }
     } else {
+      // Stop coach audio if user starts speaking again
+      if (replySoundRef.current) {
+        try {
+          await replySoundRef.current.stopAsync();
+          await replySoundRef.current.unloadAsync();
+        } catch (e) {
+          console.error('Error stopping sound:', e);
+        }
+        replySoundRef.current = null;
+      }
       startRecording();
     }
   };
 
   const handleTranscribe = async (uri: string) => {
-    setSttLoading(true);
     try {
-      const text = await transcribeAudio(uri);
-      if (text && text.trim()) {
-        // Dispatch the transcribed text directly to the Groq LLM conversation engine
-        await handleSendMessage(text);
+      // Stop previous playing sound
+      if (replySoundRef.current) {
+        try {
+          await replySoundRef.current.unloadAsync();
+        } catch (e) {
+          console.error('Error unloading previous sound:', e);
+        }
+        replySoundRef.current = null;
+      }
+
+      const localAudioUri = await handleSendVoice(uri);
+      if (localAudioUri) {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: localAudioUri },
+          { shouldPlay: true }
+        );
+        replySoundRef.current = sound;
+
+        sound.setOnPlaybackStatusUpdate(status => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.unloadAsync();
+            if (replySoundRef.current === sound) {
+              replySoundRef.current = null;
+            }
+          }
+        });
       }
     } catch (error) {
-      console.error('Transcription error:', error);
-    } finally {
-      setSttLoading(false);
+      console.error('Voice pipeline error:', error);
     }
   };
 
-  const isAnyLoading = sttLoading || isChatLoading;
-  const loadingStatusText = sttLoading
-    ? 'Listening & Transcribing...'
-    : 'Coach Alex is thinking...';
+  const isAnyLoading = isChatLoading;
+  const loadingStatusText = 'Coach Alex is thinking...';
 
   return (
     <SafeAreaView style={styles.container}>

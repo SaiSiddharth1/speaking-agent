@@ -12,3 +12,4 @@ openai-whisper
 groq==0.9.0
 httpx==0.25.1
 faster-whisper
+edge-tts
