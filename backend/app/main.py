@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.routers import auth, stt, chat, transcribe, speech, conversation
 
@@ -6,6 +7,16 @@ from app.routers import auth, stt, chat, transcribe, speech, conversation
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Speaking Agent API")
+
+# CORS — allow mobile app to access custom response headers
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["X-Transcript", "X-AI-Reply", "X-Session-Id"],
+)
 
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(stt.router)
