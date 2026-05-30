@@ -5,27 +5,29 @@ export interface Message {
   content: string;
 }
 
-export interface ChatResponse {
-  ai_response: string;
-  history: Message[];
+export interface CoachResponse {
+  reply: string;
+  correction: string | null;
+  encouragement: string;
+  follow_up_question: string;
+  raw_text: string;
 }
 
 export async function sendMessage(
-  userMessage: string,
+  message: string,
   history: Message[],
-  level: string = 'intermediate',
-  userId: number = 1
-): Promise<ChatResponse> {
+  userId: string = 'test_user_1'
+): Promise<CoachResponse> {
   const response = await fetch(`${API_BASE_URL}/api/conversation/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      user_message: userMessage,
-      history,
-      level,
       user_id: userId,
+      message: message,
+      history,
+      topic: 'free_talk',
     }),
   });
 

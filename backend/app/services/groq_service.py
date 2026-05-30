@@ -1,74 +1,74 @@
-import asyncio
-from groq import Groq
+import json
+from groq import AsyncGroq
 from app.config import settings
 
-client = Groq(api_key=settings.GROQ_API_KEY)
+client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 SYSTEM_PROMPT = """
-You are an expert English speaking coach named "Alex".
-Your job is to help non-native English speakers improve their:
-- Fluency and confidence
-- Grammar and vocabulary
-- Pronunciation awareness
-- Speaking clarity
+You are an expert English speaking coach. Your student is practicing spoken English.
+
+Your job:
+1. Respond naturally to keep the conversation going
+2. Gently correct grammar or pronunciation errors (if any)
+3. Encourage the student warmly
+4. Ask ONE follow-up question to keep them talking
+
+ALWAYS respond in this exact JSON format:
+{
+  "reply": "your natural conversational response here",
+  "correction": "corrected version of their sentence (null if no errors)",
+  "encouragement": "one warm encouraging sentence",
+  "follow_up_question": "one question to keep them speaking"
+}
 
 Rules:
-1. Always respond conversationally in 2-4 sentences max
-2. Gently correct grammar mistakes (don't ignore them)
-3. Encourage the user — be positive and supportive
-4. After your response, add a "Coach Tip:" with one specific improvement
-5. Ask a follow-up question to keep the conversation going
-6. Adapt to the user's level: {level}
-
-Format your response like this:
-[Your conversational response]
-
-💡 Coach Tip: [one specific tip]
-❓ [follow-up question]
+- Never be harsh or discouraging
+- Keep corrections gentle: "A more natural way to say that is..."
+- Stay on topic unless student changes it
+- Speak at a clear, natural pace in your text
 """
 
-async def get_ai_response(
-    user_message: str,
-    history: list,
-    level: str = "intermediate"
-) -> dict:
-    # 1. Build system prompt with level
-    formatted_system_prompt = SYSTEM_PROMPT.format(level=level).strip()
+async def get_coach_response(message: str, history: list, topic: str) -> dict:
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     
-    # 2. Build messages array: [system] + history + [new user message]
-    messages = [{"role": "system", "content": formatted_system_prompt}]
-    
-    # Map history cleanly to role/content pairs
-    for msg in history:
-        role = msg["role"] if isinstance(msg, dict) else getattr(msg, "role", "")
-        content = msg["content"] if isinstance(msg, dict) else getattr(msg, "content", "")
+    # Add history
+    for msg in history[-6:]:   # last 3 turns only — keeps tokens low
+        # Support both Pydantic model and dictionary
+        role = getattr(msg, "role", None) or (msg.get("role") if isinstance(msg, dict) else None)
+        content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else None)
         if role and content:
             messages.append({"role": role, "content": content})
-            
-    messages.append({"role": "user", "content": user_message})
     
-    # 3. Call client.chat.completions.create asynchronously using threads to prevent blocking
-    def _call_groq():
-        return client.chat.completions.create(
-            model=settings.GROQ_MODEL,
-            messages=messages,
-            max_tokens=300,
-            temperature=0.7
-        )
+    # Add current user message
+    messages.append({"role": "user", "content": message})
+    
+    response = await client.chat.completions.create(
+        model=settings.GROQ_MODEL,
+        messages=messages,
+        temperature=0.7,
+        max_tokens=500,
+    )
+    
+    raw = response.choices[0].message.content
+    
+    # Try parsing clean JSON. Sometimes LLMs return markdown-wrapped JSON (e.g. ```json ... ```)
+    clean_raw = raw.strip()
+    if clean_raw.startswith("```json"):
+        clean_raw = clean_raw[7:]
+    if clean_raw.endswith("```"):
+        clean_raw = clean_raw[:-3]
+    clean_raw = clean_raw.strip()
 
-    response = await asyncio.to_thread(_call_groq)
+    try:
+        parsed = json.loads(clean_raw)
+    except json.JSONDecodeError:
+        # Fallback if LLM doesn't return clean JSON
+        parsed = {
+            "reply": raw,
+            "correction": None,
+            "encouragement": "Keep going, you're doing great!",
+            "follow_up_question": "Can you tell me more?"
+        }
     
-    # 4. Extract response text
-    ai_response_text = response.choices[0].message.content
-
-    # 5. Update history with new user + assistant messages
-    updated_history = history + [
-        {"role": "user", "content": user_message},
-        {"role": "assistant", "content": ai_response_text}
-    ]
-    
-    # 6. Return { "response": text, "history": updated_history }
-    return {
-        "response": ai_response_text,
-        "history": updated_history
-    }
+    parsed["raw_text"] = raw
+    return parsed

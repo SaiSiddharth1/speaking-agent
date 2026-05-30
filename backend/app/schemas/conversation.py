@@ -1,16 +1,19 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class Message(BaseModel):
-    role: str   # "user" or "assistant"
+    role: str        # "user" or "assistant"
     content: str
 
 class ChatRequest(BaseModel):
-    user_message: str
-    history: List[Message] = []
-    level: str = "intermediate"
-    user_id: int
+    user_id: str
+    message: str                          # transcribed text from Whisper
+    history: List[Message] = []           # previous turns
+    topic: Optional[str] = "free_talk"    # practice topic
 
-class ChatResponse(BaseModel):
-    ai_response: str
-    history: List[Message]
+class CoachResponse(BaseModel):
+    reply: str           # what coach says back
+    correction: Optional[str]    # grammar/fluency fix if needed
+    encouragement: str
+    follow_up_question: str
+    raw_text: str        # full LLM output
