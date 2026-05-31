@@ -28,3 +28,25 @@ class ConversationMessage(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("ConversationSession", back_populates="messages")
+
+
+# Pydantic schemas for structured conversation JSON pipeline (Day 26)
+from pydantic import BaseModel
+from typing import List, Optional
+
+class ChatMessage(BaseModel):
+    role: str        # "user" or "assistant"
+    content: str
+
+class ChatRequest(BaseModel):
+    transcript: str
+    session_id: str
+    history: List[ChatMessage] = []
+
+class ChatResponse(BaseModel):
+    reply: str
+    audio_url: Optional[str] = None
+    grammar_issues: List[str] = []
+    fluency_score: int
+    suggestion: str
+

@@ -1,74 +1,116 @@
 import json
+import logging
 from groq import AsyncGroq
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
+# Use GROQ_API_KEY from settings
 client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
-SYSTEM_PROMPT = """
-You are an expert English speaking coach. Your student is practicing spoken English.
+SYSTEM_PROMPT = """You are an expert English speaking coach. The user is practicing spoken English.
 
-Your job:
-1. Respond naturally to keep the conversation going
-2. Gently correct grammar or pronunciation errors (if any)
-3. Encourage the student warmly
-4. Ask ONE follow-up question to keep them talking
-
-ALWAYS respond in this exact JSON format:
+When the user speaks, you must:
+1. Reply naturally to continue the conversation
+2. Evaluate their English (grammar, fluency, vocabulary)
+3. Return ONLY valid JSON in this format:
 {
-  "reply": "your natural conversational response here",
-  "correction": "corrected version of their sentence (null if no errors)",
-  "encouragement": "one warm encouraging sentence",
-  "follow_up_question": "one question to keep them speaking"
-}
+  "reply": "your natural conversational response",
+  "grammar_issues": ["issue 1", "issue 2"],  
+  "fluency_score": 7,
+  "vocabulary_score": 6,
+  "suggestion": "one concrete improvement tip"
+}"""
 
-Rules:
-- Never be harsh or discouraging
-- Keep corrections gentle: "A more natural way to say that is..."
-- Stay on topic unless student changes it
-- Speak at a clear, natural pace in your text
-"""
-
-async def get_coach_response(message: str, history: list, topic: str) -> dict:
+async def get_coach_response(
+    transcript: str = None,
+    history: list = None,
+    message: str = None,
+    topic: str = None
+) -> dict:
+    """
+    Accepts user input (transcript or message) along with history,
+    calls Groq LLM, and returns structured coaching feedback.
+    """
+    # Resolve message/transcript for compatibility
+    user_msg = transcript or message or ""
+    history_list = history or []
+    
+    # Cap history at last 10 messages (5 turns)
+    capped_history = history_list[-10:]
+    
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     
     # Add history
-    for msg in history[-6:]:   # last 3 turns only — keeps tokens low
-        # Support both Pydantic model and dictionary
+    for msg in capped_history:
         role = getattr(msg, "role", None) or (msg.get("role") if isinstance(msg, dict) else None)
         content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else None)
         if role and content:
             messages.append({"role": role, "content": content})
-    
+            
     # Add current user message
-    messages.append({"role": "user", "content": message})
+    messages.append({"role": "user", "content": user_msg})
     
-    response = await client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        messages=messages,
-        temperature=0.7,
-        max_tokens=500,
-    )
-    
-    raw = response.choices[0].message.content
-    
-    # Try parsing clean JSON. Sometimes LLMs return markdown-wrapped JSON (e.g. ```json ... ```)
-    clean_raw = raw.strip()
-    if clean_raw.startswith("```json"):
-        clean_raw = clean_raw[7:]
-    if clean_raw.endswith("```"):
-        clean_raw = clean_raw[:-3]
-    clean_raw = clean_raw.strip()
-
     try:
+        response = await client.chat.completions.create(
+            model=settings.GROQ_MODEL,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=500,
+            response_format={"type": "json_object"}
+        )
+        
+        raw = response.choices[0].message.content
+        
+        # Try parsing clean JSON. Sometimes LLMs return markdown-wrapped JSON (e.g. ```json ... ```)
+        clean_raw = raw.strip()
+        if clean_raw.startswith("```json"):
+            clean_raw = clean_raw[7:]
+        if clean_raw.endswith("```"):
+            clean_raw = clean_raw[:-3]
+        clean_raw = clean_raw.strip()
+        
         parsed = json.loads(clean_raw)
-    except json.JSONDecodeError:
-        # Fallback if LLM doesn't return clean JSON
-        parsed = {
-            "reply": raw,
-            "correction": None,
-            "encouragement": "Keep going, you're doing great!",
-            "follow_up_question": "Can you tell me more?"
+        
+        # Ensure correct keys are present
+        if "reply" not in parsed:
+            parsed["reply"] = raw
+        if "grammar_issues" not in parsed:
+            parsed["grammar_issues"] = []
+        if "fluency_score" not in parsed:
+            parsed["fluency_score"] = 7
+        if "vocabulary_score" not in parsed:
+            parsed["vocabulary_score"] = 6
+        if "suggestion" not in parsed:
+            parsed["suggestion"] = "Keep practicing!"
+            
+        return parsed
+        
+    except Exception as e:
+        logger.error(f"Error calling Groq or parsing JSON: {e}", exc_info=True)
+        # Fallback response for malformed JSON/API error
+        return {
+            "reply": "That is interesting! Can you tell me more?",
+            "grammar_issues": [],
+            "fluency_score": 7,
+            "vocabulary_score": 6,
+            "suggestion": "Try expressing your thoughts in full sentences.",
+            "error_detail": str(e)
         }
-    
-    parsed["raw_text"] = raw
-    return parsed
+
+
+async def get_ai_response(user_message: str, history: list, level: str = "intermediate") -> str:
+    """
+    Backwards compatibility helper for old chat endpoints.
+    Calls the new get_coach_response and returns the conversational string response.
+    """
+    history_dicts = []
+    for msg in history:
+        role = getattr(msg, "role", None) or (msg.get("role") if isinstance(msg, dict) else None)
+        content = getattr(msg, "content", None) or (msg.get("content") if isinstance(msg, dict) else None)
+        if role and content:
+            history_dicts.append({"role": role, "content": content})
+            
+    res = await get_coach_response(transcript=user_message, history=history_dicts)
+    return res.get("reply", "That's interesting! Let's keep practicing English.")
+
