@@ -57,3 +57,6 @@ yarn-error.*
 /android
 
 # misc
+
+# backend static audio files
+backend/static/*.mp3

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.database import Base, engine
-from app.routers import auth, stt, chat, transcribe, speech, conversation
+from app.routers import auth, stt, chat, transcribe, speech, conversation, score
 from app.routes import conversation as conversation_new
 
 # Auto-create tables on startup
@@ -28,6 +28,7 @@ app.include_router(transcribe.router)
 app.include_router(speech.router)
 app.include_router(conversation.router, prefix="/api/conversation")
 app.include_router(conversation_new.router)
+app.include_router(score.router, prefix="/api")
 
 # Mount the static files directory to serve generated TTS audio files
 static_dir = os.path.join(os.getcwd(), "static")
