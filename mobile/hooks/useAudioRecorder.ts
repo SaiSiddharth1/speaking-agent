@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { Alert } from 'react-native';
 
@@ -6,6 +6,9 @@ export function useAudioRecorder() {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startRecording = async () => {
     try {
@@ -16,7 +19,7 @@ export function useAudioRecorder() {
         return;
       }
 
-      // Step 2: Set audio mode
+      // Step 2: Set audio mode for recording
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
@@ -30,6 +33,12 @@ export function useAudioRecorder() {
       setRecording(recording);
       setIsRecording(true);
       setAudioUri(null);
+      setElapsedSeconds(0);
+
+      // Start elapsed timer
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
 
     } catch (err) {
       console.error('Start recording error:', err);
@@ -44,6 +53,19 @@ export function useAudioRecorder() {
       setAudioUri(uri);
       setRecording(null);
       setIsRecording(false);
+
+      // Stop timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      // Reset audio mode so playback routes to speaker, not earpiece
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
       return uri;
     } catch (err) {
       console.error('Stop recording error:', err);
@@ -51,5 +73,5 @@ export function useAudioRecorder() {
     }
   };
 
-  return { isRecording, audioUri, startRecording, stopRecording };
+  return { isRecording, audioUri, elapsedSeconds, startRecording, stopRecording };
 }
