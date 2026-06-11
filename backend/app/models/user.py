@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Boolean, DateTime
 from sqlalchemy.dialects.mysql import BIGINT
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
 
@@ -12,3 +13,5 @@ class User(Base):
     hashed_password = Column("password_hash", String(255), nullable=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    sessions = relationship("Session", back_populates="user")

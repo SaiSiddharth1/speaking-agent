@@ -1,136 +1,136 @@
-import { useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   TouchableOpacity,
+  View,
   Text,
   StyleSheet,
   Animated,
-  View,
+  Alert,
 } from 'react-native';
+import { Audio } from 'expo-av';
 
-type Props = {
-  isRecording: boolean;
-  onPress: () => void;
-};
+interface RecordButtonProps {
+  onRecordingComplete: (uri: string) => void;
+  disabled?: boolean;
+}
 
-export const RecordButton = ({ isRecording, onPress }: Props) => {
+export default function RecordButton({ onRecordingComplete, disabled }: RecordButtonProps) {
+  const [isRecording, setIsRecording] = useState(false);
+  const recordingRef = useRef<Audio.Recording | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Pulsing ring animation while recording
-  useEffect(() => {
-    if (isRecording) {
-      const pulse = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.4,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 800,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      pulse.start();
-      return () => pulse.stop();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isRecording, pulseAnim]);
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.9,
-      useNativeDriver: true,
-    }).start();
+  const startPulse = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.2, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
   };
 
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-    }).start();
+  const stopPulse = () => {
+    pulseAnim.stopAnimation();
+    Animated.timing(pulseAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+  };
+
+  const startRecording = async () => {
+    try {
+      const { granted } = await Audio.requestPermissionsAsync();
+      if (!granted) {
+        Alert.alert('Permission needed', 'Microphone access is required.');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      recordingRef.current = recording;
+      setIsRecording(true);
+      startPulse();
+    } catch (err) {
+      console.error('Start recording error:', err);
+      Alert.alert('Error', 'Could not start recording.');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (!recordingRef.current) return;
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+      setIsRecording(false);
+      stopPulse();
+
+      if (uri) {
+        onRecordingComplete(uri);
+      }
+    } catch (err) {
+      console.error('Stop recording error:', err);
+    }
+  };
+
+  const handlePress = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
   };
 
   return (
-    <View style={styles.wrapper}>
-      {/* Pulsing ring behind button */}
-      {isRecording && (
-        <Animated.View
-          style={[
-            styles.pulseRing,
-            {
-              transform: [{ scale: pulseAnim }],
-              opacity: pulseAnim.interpolate({
-                inputRange: [1, 1.4],
-                outputRange: [0.4, 0],
-              }),
-            },
-          ]}
-        />
-      )}
-
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+    <View style={styles.container}>
+      <Animated.View style={[styles.pulse, { transform: [{ scale: pulseAnim }] }]}>
         <TouchableOpacity
-          style={[styles.button, isRecording && styles.recording]}
-          onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+          style={[styles.button, isRecording && styles.buttonActive, disabled && styles.buttonDisabled]}
+          onPress={handlePress}
+          disabled={disabled}
           activeOpacity={0.8}
         >
-          {isRecording ? (
-            <View style={styles.stopIcon} />
-          ) : (
-            <Text style={styles.micIcon}>🎤</Text>
-          )}
+          <View style={[styles.icon, isRecording && styles.iconStop]} />
         </TouchableOpacity>
       </Animated.View>
+      <Text style={styles.label}>
+        {isRecording ? 'Tap to stop' : 'Tap to speak'}
+      </Text>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  wrapper: {
-    width: 120,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pulseRing: {
-    position: 'absolute',
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: '#EF4444',
-  },
+  container: { alignItems: 'center', gap: 16 },
+  pulse: { borderRadius: 50 },
   button: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#6366F1',
-    justifyContent: 'center',
+    backgroundColor: '#6C63FF',
     alignItems: 'center',
-    // Shadow for iOS
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
+    justifyContent: 'center',
+    shadowColor: '#6C63FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
     shadowRadius: 12,
-    // Shadow for Android
     elevation: 8,
   },
-  recording: {
-    backgroundColor: '#EF4444',
-    shadowColor: '#EF4444',
-  },
-  stopIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 4,
+  buttonActive: { backgroundColor: '#EF4444' },
+  buttonDisabled: { backgroundColor: '#9CA3AF', shadowOpacity: 0 },
+  icon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
   },
-  micIcon: {
-    fontSize: 36,
+  iconStop: {
+    borderRadius: 4,
+    width: 20,
+    height: 20,
   },
+  label: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
 });

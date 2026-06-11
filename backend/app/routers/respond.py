@@ -1,5 +1,5 @@
 """
-Respond Router — Full Voice Conversation Pipeline (Day 30)
+Respond Router — Full Voice Conversation Pipeline
 
 POST /api/conversation/respond
     Accepts multipart/form-data with:
@@ -9,17 +9,26 @@ POST /api/conversation/respond
         - reply_text: AI coach's text response
         - audio_base64: base64-encoded MP3 of TTS response
         - updated_history: updated conversation history array
+        - user_text / coach_text: aliases for mobile compatibility
+        - score: scoring result from the scoring service
 """
 
 import base64
 import json
 import logging
 import urllib.parse
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
+from sqlalchemy.orm import Session as DBSession
 from app.services.stt_service import transcribe_audio
 from app.services.groq_service import get_ai_response
 from app.services.tts_service import text_to_speech
+from app.services.scoring_service import evaluate_transcript
+from app.database import get_db
+from app.models.session import Session as SessionModel, Message
+from app.models.user import User
+from app.auth_utils import get_current_user_optional
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +39,8 @@ router = APIRouter(tags=["conversation"])
 async def respond_to_voice(
     file: UploadFile = File(...),
     conversation_history: str = Form(default="[]"),
+    db: DBSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
     Full voice conversation pipeline:
@@ -37,7 +48,9 @@ async def respond_to_voice(
     2. Transcribe audio with Groq Whisper STT
     3. Get AI coaching response from Groq LLM (with conversation context)
     4. Convert AI reply to speech with Edge-TTS
-    5. Return JSON with reply text, base64 audio, and updated history
+    5. Score the user's transcript
+    6. Persist session to DB if user is authenticated
+    7. Return JSON with reply text, base64 audio, and scores
     """
     try:
         # ── Validate audio input ──
@@ -75,7 +88,45 @@ async def respond_to_voice(
         # ── Step 5: Encode audio as base64 ──
         audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
 
-        # ── Step 6: Build updated conversation history ──
+        # ── Step 6: Score the transcript ──
+        score_result = {"grammar_score": 0, "fluency_score": 0, "overall_score": 0, "feedback_tips": []}
+        try:
+            scored = await evaluate_transcript(transcript)
+            score_result = {
+                "grammar_score": scored.grammar_score,
+                "fluency_score": scored.fluency_score,
+                "overall_score": scored.overall_score,
+                "feedback_tips": scored.feedback,
+            }
+        except Exception as score_err:
+            logger.warning(f"[respond] Scoring failed (non-fatal): {score_err}")
+
+        # ── Step 7: Persist to DB if authenticated ──
+        if current_user:
+            try:
+                db_session = SessionModel(
+                    user_id=current_user.id,
+                    grammar_score=score_result.get("grammar_score", 0),
+                    fluency_score=score_result.get("fluency_score", 0),
+                    overall_score=score_result.get("overall_score", 0),
+                )
+                db.add(db_session)
+                db.flush()
+
+                db.add(Message(
+                    session_id=db_session.id, role="user", content=transcript
+                ))
+                db.add(Message(
+                    session_id=db_session.id, role="assistant",
+                    content=reply_text,
+                    feedback_tips=score_result.get("feedback_tips", []),
+                ))
+                db.commit()
+            except Exception as db_err:
+                logger.warning(f"[respond] DB save failed (non-fatal): {db_err}")
+                db.rollback()
+
+        # ── Step 8: Build updated conversation history ──
         updated_history = list(history) + [
             {"role": "user", "content": transcript},
             {"role": "assistant", "content": reply_text},
@@ -86,6 +137,10 @@ async def respond_to_voice(
             "audio_base64": audio_base64,
             "updated_history": updated_history,
             "user_transcript": transcript,
+            # Mobile-compatible aliases
+            "user_text": transcript,
+            "coach_text": reply_text,
+            "score": score_result,
         }
 
     except HTTPException:
