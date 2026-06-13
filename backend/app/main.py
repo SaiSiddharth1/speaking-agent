@@ -2,18 +2,34 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.database import Base, engine
-from app.routers import auth, stt, chat, transcribe, speech, conversation, score, respond
-from app.routers import auth_router, sessions, progress
-from app.routes import conversation as conversation_new
+from app.database import Base, engine, init_db
+from app.error_handlers import register_error_handlers
+from app.routers import (
+    auth,
+    stt,
+    chat,
+    transcribe,
+    speech,
+    conversation,
+    score,
+    respond,
+    sessions,
+    dashboard,
+    profile,
+    progress,
+    auth_router,
+    session_router,
+    progress_router,
+)
 
 # Import models so they are registered with Base.metadata
-from app.models import user, conversation as conv_model, session as session_model
-
-# Auto-create tables on startup
-Base.metadata.create_all(bind=engine)
+from app.models import user, session as session_model
 
 app = FastAPI(title="Speaking Agent API")
+
+@app.on_event("startup")
+def startup():
+    init_db()
 
 # CORS — allow mobile app to access custom response headers
 app.add_middleware(
@@ -25,18 +41,25 @@ app.add_middleware(
     expose_headers=["X-Transcript", "X-AI-Reply", "X-Session-Id"],
 )
 
-app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+# Auth and API routes
 app.include_router(auth_router.router)
+app.include_router(session_router.router)
+app.include_router(progress_router.router)
+
+app.include_router(auth.router)
 app.include_router(stt.router)
 app.include_router(chat.router)
 app.include_router(transcribe.router)
 app.include_router(speech.router)
 app.include_router(conversation.router, prefix="/api/conversation")
 app.include_router(respond.router, prefix="/api/conversation")
-app.include_router(conversation_new.router)
 app.include_router(score.router, prefix="/api")
 app.include_router(sessions.router)
+app.include_router(dashboard.router)
+app.include_router(profile.router)
 app.include_router(progress.router)
+
+register_error_handlers(app)
 
 # Mount the static files directory to serve generated TTS audio files
 static_dir = os.path.join(os.getcwd(), "static")

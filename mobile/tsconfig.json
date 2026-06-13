@@ -7,9 +7,20 @@
     "node_modules",
     "babel.config.js",
     "metro.config.js",
-    "screens",
+    "components",
+    "context",
     "hooks",
+    "navigation",
+    "screens",
     "services",
-    "components"
+    "utils",
+    "app",
+    "src/services/conversationService.ts",
+    "src/services/sttService.ts",
+    "src/services/speechApi.ts",
+    "src/services/chatService.ts",
+    "src/screens/PracticeScreen.tsx",
+    "src/hooks/useConversation.ts",
+    "src/screens/RegisterScreen.tsx"
   ]
 }

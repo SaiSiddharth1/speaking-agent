@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.conversation import ChatRequest, CoachResponse
 from app.services.groq_service import get_coach_response
+from app.services.pronunciation_service import get_pronunciation_hints
 
 router = APIRouter(tags=["conversation"])
 conversation_router = router
@@ -16,3 +17,11 @@ async def chat_with_coach(request: ChatRequest):
         return CoachResponse(**result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/pronunciation-hints")
+async def pronunciation_hints(payload: dict):
+    transcript = payload.get("transcript", "")
+    if not transcript:
+        raise HTTPException(400, "Transcript required")
+    hints = get_pronunciation_hints(transcript)
+    return {"hints": hints}
