@@ -28,7 +28,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { RecordButton } from '../components/RecordButton';
 import {
@@ -162,7 +162,7 @@ export default function ConversationScreen() {
       // Write base64 to a temp file
       const fileUri = FileSystem.documentDirectory + `response_${Date.now()}.mp3`;
       await FileSystem.writeAsStringAsync(fileUri, base64Audio, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
 
       // Set audio mode for playback (speaker output)

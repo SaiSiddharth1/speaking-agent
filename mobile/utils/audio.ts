@@ -1,12 +1,12 @@
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 
 export async function playBase64Audio(base64: string): Promise<void> {
   try {
     // Write base64 to a temp file
     const tempUri = FileSystem.cacheDirectory + `tts_${Date.now()}.mp3`;
     await FileSystem.writeAsStringAsync(tempUri, base64, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: 'base64',
     });
 
     await Audio.setAudioModeAsync({

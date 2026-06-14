@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import { API_BASE_URL } from '../../services/api';
 
 export interface Message {
@@ -109,7 +109,7 @@ export async function sendVoiceConversation(
   // Write base64 string to a temporary file inside the cache directory
   const tempAudioPath = `${FileSystem.cacheDirectory}reply_${Date.now()}.mp3`;
   await FileSystem.writeAsStringAsync(tempAudioPath, base64, {
-    encoding: FileSystem.EncodingType.Base64,
+    encoding: 'base64',
   });
 
   return {
