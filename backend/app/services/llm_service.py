@@ -16,7 +16,7 @@ async def get_coach_response(
 ) -> dict:
     
     messages = _build_messages(user_message, conversation_history, user_level, topic)
-    model = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     
     try:
         response = await client.chat.completions.create(
