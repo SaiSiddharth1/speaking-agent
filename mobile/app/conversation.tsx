@@ -28,7 +28,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
 import { RecordButton } from '../components/RecordButton';
 import {
