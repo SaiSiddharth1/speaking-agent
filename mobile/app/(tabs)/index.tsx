@@ -10,12 +10,14 @@ import {
 import RecordButton from '../../components/RecordButton';
 import FeedbackCard from '../../components/FeedbackCard';
 import { sendAudioToBackend } from '../../services/api';
-import { playBase64Audio } from '../../utils/audio';
+import { playBase64Audio, playLocalAudio } from '../../utils/audio';
+import { TouchableOpacity } from 'react-native';
 
 interface Message {
   id: string;
   role: 'user' | 'coach';
   text: string;
+  audioUri?: string;
 }
 
 interface ScoreResult {
@@ -48,6 +50,7 @@ export default function VoiceScreen() {
         id: Date.now().toString(),
         role: 'user',
         text: result.user_text,
+        audioUri: uri,
       };
       const coachMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -99,12 +102,24 @@ export default function VoiceScreen() {
               msg.role === 'user' ? styles.bubbleUser : styles.bubbleCoach,
             ]}
           >
-            <Text style={[
-              styles.bubbleText,
-              msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextCoach,
-            ]}>
-              {msg.text}
-            </Text>
+            <View style={styles.messageRow}>
+              <Text style={[
+                styles.bubbleText,
+                msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextCoach,
+                msg.audioUri ? { marginRight: 8 } : null,
+              ]}>
+                {msg.text}
+              </Text>
+              {msg.role === 'user' && msg.audioUri && (
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={() => playLocalAudio(msg.audioUri!)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.playIcon}>▶️</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -160,6 +175,25 @@ const styles = StyleSheet.create({
   bubbleText: { fontSize: 15, lineHeight: 22 },
   bubbleTextUser: { color: '#FFFFFF' },
   bubbleTextCoach: { color: '#111827' },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  playButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  playIcon: {
+    fontSize: 12,
+    lineHeight: 14,
+    color: '#FFFFFF',
+  },
   controls: {
     paddingVertical: 24,
     alignItems: 'center',

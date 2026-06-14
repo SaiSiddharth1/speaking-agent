@@ -196,6 +196,37 @@ export default function ConversationScreen() {
     }
   };
 
+  const playLocalAudio = async (localUri: string): Promise<void> => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: localUri },
+        { shouldPlay: true }
+      );
+      soundRef.current = sound;
+
+      sound.setOnPlaybackStatusUpdate((playbackStatus) => {
+        if (playbackStatus.isLoaded && playbackStatus.didJustFinish) {
+          sound.unloadAsync().catch(() => {});
+          if (soundRef.current === sound) {
+            soundRef.current = null;
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Local audio playback error:', err);
+    }
+  };
+
   /**
    * Core handler: Record toggle → Send → Play response
    */
@@ -221,8 +252,14 @@ export default function ConversationScreen() {
         // Send audio + history to backend
         const response: ConversationResponse = await sendAudioMessage(uri, messages);
 
-        // Update conversation history
-        setMessages(response.updated_history);
+        // Update conversation history with local audioUri mapping
+        const updatedHistory = response.updated_history.map((msg, index) => {
+          if (msg.role === 'user' && index === response.updated_history.length - 2) {
+            return { ...msg, audioUri: uri };
+          }
+          return msg;
+        });
+        setMessages(updatedHistory);
 
         // Play TTS response
         setStatus('speaking');
@@ -329,14 +366,26 @@ export default function ConversationScreen() {
                 >
                   {isUser ? '🧑  You' : '🤖  Coach Alex'}
                 </Text>
-                <Text
-                  style={[
-                    styles.messageText,
-                    isUser ? styles.userText : styles.assistantText,
-                  ]}
-                >
-                  {msg.content}
-                </Text>
+                <View style={styles.messageRow}>
+                  <Text
+                    style={[
+                      styles.messageText,
+                      isUser ? styles.userText : styles.assistantText,
+                      isUser && msg.audioUri ? { marginRight: 8 } : null,
+                    ]}
+                  >
+                    {msg.content}
+                  </Text>
+                  {isUser && msg.audioUri && (
+                    <TouchableOpacity
+                      style={styles.playButton}
+                      onPress={() => playLocalAudio(msg.audioUri!)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.playIcon}>▶️</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             );
           })}
@@ -518,6 +567,25 @@ const styles = StyleSheet.create({
   },
   assistantText: {
     color: '#CBD5E1',
+  },
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  playButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  playIcon: {
+    fontSize: 12,
+    lineHeight: 14,
+    color: '#FFFFFF',
   },
 
   // ── Loading Bubble ──

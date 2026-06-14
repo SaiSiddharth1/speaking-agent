@@ -11,6 +11,7 @@ import { API_BASE_URL } from './api';
 export interface Message {
   role: string;
   content: string;
+  audioUri?: string;
 }
 
 export interface ConversationResponse {

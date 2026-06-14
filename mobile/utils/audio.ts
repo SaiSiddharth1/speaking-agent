@@ -31,3 +31,25 @@ export async function playBase64Audio(base64: string): Promise<void> {
     throw err;
   }
 }
+
+export async function playLocalAudio(uri: string): Promise<void> {
+  try {
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+    });
+
+    const { sound } = await Audio.Sound.createAsync({ uri });
+    await sound.playAsync();
+
+    sound.setOnPlaybackStatusUpdate(async (status) => {
+      if ('didJustFinish' in status && status.didJustFinish) {
+        await sound.unloadAsync();
+      }
+    });
+  } catch (err) {
+    console.error('Local audio playback error:', err);
+    throw err;
+  }
+}
