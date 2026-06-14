@@ -17,10 +17,20 @@ def register_error_handlers(app):
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        logger.error(f"Validation error: {exc.errors()}")
+        # Convert errors to string-safe format (bytes are not JSON serializable)
+        safe_errors = []
+        for err in exc.errors():
+            safe_err = {}
+            for k, v in err.items():
+                if isinstance(v, bytes):
+                    safe_err[k] = v.decode("utf-8", errors="replace")
+                else:
+                    safe_err[k] = v
+            safe_errors.append(safe_err)
+        logger.error(f"Validation error: {safe_errors}")
         return JSONResponse(
             status_code=422,
-            content={"error": "Validation failed", "details": exc.errors()}
+            content={"error": "Validation failed", "details": safe_errors}
         )
 
     @app.exception_handler(Exception)

@@ -53,11 +53,10 @@ export async function sendAudioToBackend(
 }
 
 export async function login(email: string, password: string) {
-  const body = new URLSearchParams({ username: email, password });
-  const response = await fetch(`${BASE_URL}/auth/login`, {
+  const response = await fetch(`${BASE_URL}/api/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
   });
   if (!response.ok) throw new Error('Login failed');
   const data = await response.json();
@@ -66,7 +65,7 @@ export async function login(email: string, password: string) {
 }
 
 export async function register(email: string, password: string, name: string) {
-  const response = await fetch(`${BASE_URL}/auth/register`, {
+  const response = await fetch(`${BASE_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, name }),
