@@ -4,7 +4,7 @@
  * Handles communication with the POST /api/conversation/respond endpoint.
  * Sends audio + conversation history as multipart/form-data.
  * Receives JSON with reply_text, audio_base64, and updated_history.
- */import * as FileSystem from 'expo-file-system';
+ */import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './api';
 
