@@ -1,17 +1,23 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.session import ConversationSession
+from app.models.score import Score
 
 def get_progress_summary(db: Session, user_id: int) -> dict:
+    scores = (
+        db.query(Score)
+        .filter(Score.user_id == user_id)
+        .all()
+    )
     sessions = (
         db.query(ConversationSession)
         .filter(ConversationSession.user_id == user_id)
         .all()
     )
-    if not sessions:
+    if not scores:
         return {
-            "total_sessions": 0,
-            "total_minutes": 0,
+            "total_sessions": len(sessions),
+            "total_minutes": round(sum(s.duration_seconds for s in sessions) / 60),
             "avg_grammar": 0,
             "avg_fluency": 0,
             "avg_overall": 0,
@@ -20,10 +26,10 @@ def get_progress_summary(db: Session, user_id: int) -> dict:
         }
 
     total_seconds = sum(s.duration_seconds for s in sessions)
-    avg_grammar = sum(s.grammar_score for s in sessions) / len(sessions)
-    avg_fluency = sum(s.fluency_score for s in sessions) / len(sessions)
-    avg_overall = sum(s.overall_score for s in sessions) / len(sessions)
-    best_score = max(s.overall_score for s in sessions)
+    avg_grammar = sum(s.grammar_score for s in scores) / len(scores)
+    avg_fluency = sum(s.fluency_score for s in scores) / len(scores)
+    avg_overall = sum(s.overall_score for s in scores) / len(scores)
+    best_score = max(s.overall_score for s in scores)
 
     # Calculate streak (consecutive days with at least 1 session)
     from datetime import date, timedelta
@@ -51,13 +57,13 @@ def get_progress_summary(db: Session, user_id: int) -> dict:
 def get_score_history(db: Session, user_id: int, days: int = 30):
     from datetime import datetime, timedelta
     cutoff = datetime.utcnow() - timedelta(days=days)
-    sessions = (
-        db.query(ConversationSession)
+    scores = (
+        db.query(Score)
         .filter(
-            ConversationSession.user_id == user_id,
-            ConversationSession.created_at >= cutoff
+            Score.user_id == user_id,
+            Score.created_at >= cutoff
         )
-        .order_by(ConversationSession.created_at.asc())
+        .order_by(Score.created_at.asc())
         .all()
     )
     return [
@@ -67,5 +73,5 @@ def get_score_history(db: Session, user_id: int, days: int = 30):
             "fluency": s.fluency_score,
             "overall": s.overall_score,
         }
-        for s in sessions
+        for s in scores
     ]

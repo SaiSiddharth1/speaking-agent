@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
-from app.services.auth_service import decode_token
+from app.core.security import decode_token
 
 def get_current_user(
     authorization: str = Header(...),

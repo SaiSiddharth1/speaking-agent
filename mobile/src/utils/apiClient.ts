@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = 'http://192.168.29.37:8000';
 
 async function request(path: string, options: RequestInit = {}) {
   const token = await AsyncStorage.getItem('token');

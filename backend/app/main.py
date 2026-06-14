@@ -2,7 +2,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from app.database import Base, engine, init_db
+from app.database import Base, engine
 from app.error_handlers import register_error_handlers
 from app.routers import (
     auth,
@@ -17,19 +17,21 @@ from app.routers import (
     dashboard,
     profile,
     progress,
-    auth_router,
-    session_router,
-    progress_router,
 )
 
 # Import models so they are registered with Base.metadata
-from app.models import user, session as session_model
+import app.models.user
+import app.models.session
+import app.models.score
+
+# Create tables
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Speaking Agent API")
 
 @app.on_event("startup")
 def startup():
-    init_db()
+    pass
 
 # CORS — allow mobile app to access custom response headers
 app.add_middleware(
@@ -42,10 +44,6 @@ app.add_middleware(
 )
 
 # Auth and API routes
-app.include_router(auth_router.router)
-app.include_router(session_router.router)
-app.include_router(progress_router.router)
-
 app.include_router(auth.router)
 app.include_router(stt.router)
 app.include_router(chat.router)

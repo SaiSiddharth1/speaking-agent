@@ -1,84 +1,68 @@
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session as DBSession
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 from sqlalchemy import func
+from typing import List
 from app.database import get_db
-from app.models.session import Session
-from app.dependencies import get_current_user
-from datetime import datetime, timedelta
+from app.models.score import Score
+from app.models.user import User
+from app.core.security import get_current_user
+from pydantic import BaseModel
+from datetime import datetime
 
-router = APIRouter(prefix="/api/progress", tags=["progress"])
+router = APIRouter(prefix="/api/progress", tags=["Progress"])
 
-@router.get("/weekly")
-def weekly_progress(
-    weeks: int = Query(default=4, le=12),
-    current_user=Depends(get_current_user),
-    db: DBSession = Depends(get_db),
+class ScoreCreate(BaseModel):
+    session_id: int
+    grammar_score: float
+    fluency_score: float
+    vocabulary_score: float
+    overall_score: float
+
+class ScoreOut(ScoreCreate):
+    id: int
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+@router.post("/scores", response_model=ScoreOut)
+def save_score(
+    data: ScoreCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Returns daily averages for the last N weeks."""
-    since = datetime.utcnow() - timedelta(weeks=weeks)
-    sessions = (
-        db.query(Session)
-        .filter(
-            Session.user_id == current_user.id,
-            Session.ended_at >= since,
-            Session.ended_at.isnot(None),
-        )
-        .all()
-    )
+    score = Score(user_id=current_user.id, **data.dict())
+    db.add(score)
+    db.commit()
+    db.refresh(score)
+    return score
 
-    # Group by date
-    days: dict = {}
-    for s in sessions:
-        day = s.ended_at.strftime("%Y-%m-%d")
-        if day not in days:
-            days[day] = {"grammar": [], "fluency": [], "overall": []}
-        days[day]["grammar"].append(s.grammar_score or 0)
-        days[day]["fluency"].append(s.fluency_score or 0)
-        days[day]["overall"].append(s.overall_score or 0)
-
-    result = []
-    for day, scores in sorted(days.items()):
-        result.append({
-            "date": day,
-            "grammar": round(sum(scores["grammar"]) / len(scores["grammar"]), 1),
-            "fluency": round(sum(scores["fluency"]) / len(scores["fluency"]), 1),
-            "overall": round(sum(scores["overall"]) / len(scores["overall"]), 1),
-        })
-    return result
-
-@router.get("/monthly")
-def monthly_progress(
-    months: int = Query(default=3, le=6),
-    current_user=Depends(get_current_user),
-    db: DBSession = Depends(get_db),
+@router.get("/scores", response_model=List[ScoreOut])
+def get_scores(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    """Returns weekly averages bucketed by month."""
-    since = datetime.utcnow() - timedelta(days=30 * months)
-    sessions = (
-        db.query(Session)
-        .filter(
-            Session.user_id == current_user.id,
-            Session.ended_at >= since,
-            Session.ended_at.isnot(None),
-        )
-        .all()
-    )
+    return db.query(Score)\
+             .filter(Score.user_id == current_user.id)\
+             .order_by(Score.created_at.desc())\
+             .limit(20).all()
 
-    months_data: dict = {}
-    for s in sessions:
-        key = s.ended_at.strftime("%Y-%m")
-        if key not in months_data:
-            months_data[key] = {"grammar": [], "fluency": [], "overall": []}
-        months_data[key]["grammar"].append(s.grammar_score or 0)
-        months_data[key]["fluency"].append(s.fluency_score or 0)
-        months_data[key]["overall"].append(s.overall_score or 0)
+@router.get("/summary")
+def get_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = db.query(
+        func.avg(Score.grammar_score).label("avg_grammar"),
+        func.avg(Score.fluency_score).label("avg_fluency"),
+        func.avg(Score.vocabulary_score).label("avg_vocabulary"),
+        func.avg(Score.overall_score).label("avg_overall"),
+        func.count(Score.id).label("total_sessions")
+    ).filter(Score.user_id == current_user.id).first()
 
-    result = []
-    for month, scores in sorted(months_data.items()):
-        result.append({
-            "month": month,
-            "grammar": round(sum(scores["grammar"]) / len(scores["grammar"]), 1),
-            "fluency": round(sum(scores["fluency"]) / len(scores["fluency"]), 1),
-            "overall": round(sum(scores["overall"]) / len(scores["overall"]), 1),
-        })
-    return result
+    return {
+        "avg_grammar": round(result.avg_grammar or 0, 1),
+        "avg_fluency": round(result.avg_fluency or 0, 1),
+        "avg_vocabulary": round(result.avg_vocabulary or 0, 1),
+        "avg_overall": round(result.avg_overall or 0, 1),
+        "total_sessions": result.total_sessions or 0
+    }

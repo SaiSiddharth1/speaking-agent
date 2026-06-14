@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8000';
+const BASE_URL = 'http://192.168.29.37:8000';
 
 export async function register(name: string, email: string, password: string) {
   const res = await fetch(`${BASE_URL}/api/auth/register`, {

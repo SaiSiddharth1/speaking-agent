@@ -1,71 +1,85 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { useAuth } from '../context/AuthContext';
-import { login as apiLogin, register as apiRegister } from '../api/auth';
+import {
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, Alert, ActivityIndicator
+} from 'react-native';
+import { authService } from '../services/authService';
+import { useAuthStore } from '../store/authStore';
 
-export default function LoginScreen() {
-  const { login } = useAuth();
+export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [isRegister, setIsRegister] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const setAuth = useAuthStore((state) => state.setAuth);
 
-  const handleSubmit = async () => {
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+    setLoading(true);
     try {
-      if (isRegister) {
-        const data = await apiRegister(name, email, password);
-        await login(data.access_token, data.user);
-      } else {
-        const data = await apiLogin(email, password);
-        await login(data.access_token, data.user);
+      const data = await authService.login(email, password);
+      await authService.saveToken(data.access_token);
+      setAuth(data.user, data.access_token);
+      
+      // Navigate to main navigator if navigation exists
+      if (navigation) {
+        navigation.replace('Home');
       }
     } catch (err: any) {
-      Alert.alert('Authentication Error', err.message);
+      Alert.alert('Login Failed', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Speaking Agent</Text>
-      {isRegister && (
-        <TextInput
-          style={styles.input}
-          placeholder="Name"
-          value={name}
-          onChangeText={setName}
-        />
-      )}
+      <Text style={styles.subtitle}>Your AI English Coach</Text>
+
       <TextInput
         style={styles.input}
         placeholder="Email"
+        placeholderTextColor="#888"
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
         autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#888"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TouchableOpacity style={styles.btn} onPress={handleSubmit}>
-        <Text style={styles.btnText}>{isRegister ? 'Sign Up' : 'Sign In'}</Text>
+
+      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Login</Text>}
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => setIsRegister(!isRegister)}>
-        <Text style={styles.toggleText}>
-          {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-        </Text>
+
+      <TouchableOpacity onPress={() => navigation?.navigate('Register')}>
+        <Text style={styles.link}>Don't have an account? Register</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#FFF' },
-  title: { fontSize: 28, fontWeight: '800', textAlign: 'center', marginBottom: 32, color: '#6366F1' },
-  input: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, padding: 14, fontSize: 15, marginBottom: 16 },
-  btn: { backgroundColor: '#6366F1', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-  btnText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
-  toggleText: { textAlign: 'center', color: '#6366F1', marginTop: 16 }
+  container: { flex: 1, backgroundColor: '#0f0f1a', justifyContent: 'center', padding: 24 },
+  title: { fontSize: 32, fontWeight: 'bold', color: '#a78bfa', textAlign: 'center', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#888', textAlign: 'center', marginBottom: 40 },
+  input: {
+    backgroundColor: '#1e1e2e', color: '#fff', borderRadius: 12,
+    padding: 14, marginBottom: 16, fontSize: 16, borderWidth: 1, borderColor: '#333'
+  },
+  button: {
+    backgroundColor: '#7c3aed', borderRadius: 12,
+    padding: 16, alignItems: 'center', marginBottom: 16
+  },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  link: { color: '#a78bfa', textAlign: 'center', marginTop: 8 },
 });

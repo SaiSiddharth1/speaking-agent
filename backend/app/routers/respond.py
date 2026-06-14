@@ -26,7 +26,8 @@ from app.services.groq_service import get_ai_response
 from app.services.tts_service import text_to_speech
 from app.services.scoring_service import evaluate_transcript
 from app.database import get_db
-from app.models.session import Session as SessionModel, Message
+from app.models.session import ConversationSession, Message
+from app.models.score import Score
 from app.models.user import User
 from app.auth_utils import get_current_user_optional
 
@@ -101,14 +102,11 @@ async def respond_to_voice(
         except Exception as score_err:
             logger.warning(f"[respond] Scoring failed (non-fatal): {score_err}")
 
-        # ── Step 7: Persist to DB if authenticated ──
         if current_user:
             try:
-                db_session = SessionModel(
+                db_session = ConversationSession(
                     user_id=current_user.id,
-                    grammar_score=score_result.get("grammar_score", 0),
-                    fluency_score=score_result.get("fluency_score", 0),
-                    overall_score=score_result.get("overall_score", 0),
+                    topic="General"
                 )
                 db.add(db_session)
                 db.flush()
@@ -118,9 +116,18 @@ async def respond_to_voice(
                 ))
                 db.add(Message(
                     session_id=db_session.id, role="assistant",
-                    content=reply_text,
-                    feedback_tips=score_result.get("feedback_tips", []),
+                    content=reply_text
                 ))
+
+                db_score = Score(
+                    session_id=db_session.id,
+                    user_id=current_user.id,
+                    grammar_score=score_result.get("grammar_score", 0.0),
+                    fluency_score=score_result.get("fluency_score", 0.0),
+                    vocabulary_score=score_result.get("overall_score", 0.0),
+                    overall_score=score_result.get("overall_score", 0.0)
+                )
+                db.add(db_score)
                 db.commit()
             except Exception as db_err:
                 logger.warning(f"[respond] DB save failed (non-fatal): {db_err}")

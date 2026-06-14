@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import func
 from app.database import get_db
-from app.models.session import Session
+from app.models.score import Score
+from app.models.session import ConversationSession
 from app.models.user import User
 from app.dependencies import get_current_user
 from pydantic import BaseModel
@@ -10,9 +11,9 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 def _compute_level(overall_avg: float) -> str:
-    if overall_avg >= 85:
+    if overall_avg >= 8.5:
         return "Advanced"
-    elif overall_avg >= 65:
+    elif overall_avg >= 6.5:
         return "Intermediate"
     else:
         return "Beginner"
@@ -20,20 +21,22 @@ def _compute_level(overall_avg: float) -> str:
 @router.get("/me")
 def get_profile(current_user: User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     stats = db.query(
-        func.count(Session.id),
-        func.avg(Session.overall_score),
-    ).filter(Session.user_id == current_user.id, Session.ended_at.isnot(None)).first()
+        func.avg(Score.overall_score),
+    ).filter(Score.user_id == current_user.id).first()
 
-    total = stats[0] or 0
-    avg_overall = round(stats[1] or 0, 1)
+    total_sessions = db.query(ConversationSession).filter(
+        ConversationSession.user_id == current_user.id
+    ).count()
+
+    avg_overall = round(stats[0] or 0, 1) if stats else 0.0
     level = _compute_level(avg_overall)
 
     return {
         "id": current_user.id,
-        "name": current_user.full_name,
+        "name": current_user.name,
         "email": current_user.email,
         "level": level,
-        "total_sessions": total,
+        "total_sessions": total_sessions,
         "avg_overall": avg_overall,
     }
 
@@ -46,6 +49,6 @@ def update_profile(
     current_user: User = Depends(get_current_user),
     db: DBSession = Depends(get_db),
 ):
-    current_user.full_name = payload.name
+    current_user.name = payload.name
     db.commit()
     return {"message": "Profile updated"}
