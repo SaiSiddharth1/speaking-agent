@@ -1,8 +1,8 @@
 import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ⚠️ Replace with your machine's local IP when testing on a physical device
-const BASE_URL = 'http://192.168.29.37:8000';
+export const BASE_URL = 'http://192.168.29.37:8000';
+export const API_BASE_URL = BASE_URL;
 
 export interface ConversationResponse {
   user_text: string;
