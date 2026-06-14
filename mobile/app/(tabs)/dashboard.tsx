@@ -17,11 +17,15 @@ interface ProgressData {
   scores_over_time: { date: string; overall: number }[];
 }
 
+import { useTheme } from '../../context/ThemeContext';
+
 function MiniChart({ data }: { data: { date: string; overall: number }[] }) {
+  const { theme } = useTheme();
+
   if (data.length < 2) {
     return (
       <View style={chartStyles.empty}>
-        <Text style={chartStyles.emptyText}>Keep practicing to see your trend!</Text>
+        <Text style={[chartStyles.emptyText, { color: theme.textSecondary }]}>Keep practicing to see your trend!</Text>
       </View>
     );
   }
@@ -36,15 +40,15 @@ function MiniChart({ data }: { data: { date: string; overall: number }[] }) {
 
   return (
     <View style={chartStyles.container}>
-      <Text style={chartStyles.label}>Overall score — last 30 days</Text>
+      <Text style={[chartStyles.label, { color: theme.textSecondary }]}>Overall score — last 30 days</Text>
       {/* Simple SVG-like chart using Views */}
       <View style={{ height: chartHeight, position: 'relative' }}>
         {[0, 5, 10].map((v) => (
           <View
             key={v}
-            style={[chartStyles.gridLine, { bottom: (v / 10) * chartHeight }]}
+            style={[chartStyles.gridLine, { bottom: (v / 10) * chartHeight, borderTopColor: theme.border }]}
           >
-            <Text style={chartStyles.gridLabel}>{v}</Text>
+            <Text style={[chartStyles.gridLabel, { color: theme.textSecondary }]}>{v}</Text>
           </View>
         ))}
         {points.map((p, i) => (
@@ -52,7 +56,7 @@ function MiniChart({ data }: { data: { date: string; overall: number }[] }) {
             key={i}
             style={[
               chartStyles.dot,
-              { left: p.x - 4, top: p.y - 4 },
+              { left: p.x - 4, top: p.y - 4, backgroundColor: theme.primary },
             ]}
           />
         ))}
@@ -63,31 +67,34 @@ function MiniChart({ data }: { data: { date: string; overall: number }[] }) {
 
 const chartStyles = StyleSheet.create({
   container: { marginTop: 8 },
-  label: { fontSize: 12, color: '#9CA3AF', marginBottom: 8 },
+  label: { fontSize: 12, marginBottom: 8 },
   gridLine: {
     position: 'absolute', left: 0, right: 0,
-    borderTopWidth: 1, borderTopColor: '#F3F4F6', flexDirection: 'row',
+    borderTopWidth: 1, flexDirection: 'row',
   },
-  gridLabel: { fontSize: 10, color: '#D1D5DB', marginTop: -8 },
+  gridLabel: { fontSize: 10, marginTop: -8 },
   dot: {
     position: 'absolute', width: 8, height: 8,
-    borderRadius: 4, backgroundColor: '#6C63FF',
+    borderRadius: 4,
   },
   empty: { alignItems: 'center', padding: 20 },
-  emptyText: { fontSize: 13, color: '#9CA3AF' },
+  emptyText: { fontSize: 13 },
 });
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  const { theme } = useTheme();
+
   return (
-    <View style={[dashStyles.statCard, { borderLeftColor: color }]}>
-      <Text style={dashStyles.statValue}>{value}</Text>
-      <Text style={dashStyles.statLabel}>{label}</Text>
+    <View style={[dashStyles.statCard, { borderLeftColor: color, backgroundColor: theme.cardBackground, borderColor: theme.border, borderWidth: 1 }]}>
+      <Text style={[dashStyles.statValue, { color: theme.text }]}>{value}</Text>
+      <Text style={[dashStyles.statLabel, { color: theme.textSecondary }]}>{label}</Text>
     </View>
   );
 }
 
 export default function DashboardScreen() {
   const { logout } = useAuth();
+  const { theme } = useTheme();
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,22 +111,22 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={dashStyles.safe}>
-        <ActivityIndicator size="large" color="#6C63FF" style={{ marginTop: 80 }} />
+      <SafeAreaView style={[dashStyles.safe, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 80 }} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={dashStyles.safe}>
+    <SafeAreaView style={[dashStyles.safe, { backgroundColor: theme.background }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={dashStyles.header}>
           <View>
-            <Text style={dashStyles.title}>Your progress</Text>
-            <Text style={dashStyles.subtitle}>Keep up the great work!</Text>
+            <Text style={[dashStyles.title, { color: theme.text }]}>Your progress</Text>
+            <Text style={[dashStyles.subtitle, { color: theme.textSecondary }]}>Keep up the great work!</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={dashStyles.logoutBtn}>
+          <TouchableOpacity onPress={logout} style={[dashStyles.logoutBtn, { backgroundColor: theme.isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2' }]}>
             <Text style={dashStyles.logoutText}>Sign out</Text>
           </TouchableOpacity>
         </View>
@@ -134,47 +141,47 @@ export default function DashboardScreen() {
           <StatCard
             label="Total sessions"
             value={`${progress?.total_sessions ?? 0}`}
-            color="#6C63FF"
+            color={theme.primary}
           />
         </View>
 
         {/* This week scores */}
-        <View style={dashStyles.section}>
-          <Text style={dashStyles.sectionTitle}>This week (avg)</Text>
+        <View style={[dashStyles.section, { backgroundColor: theme.cardBackground, borderColor: theme.border, borderWidth: 1 }]}>
+          <Text style={[dashStyles.sectionTitle, { color: theme.text }]}>This week (avg)</Text>
           <View style={dashStyles.scoreRow}>
             {[
               { label: 'Overall', value: progress?.avg_overall_7d ?? 0, color: '#10B981' },
-              { label: 'Grammar', value: progress?.avg_grammar_7d ?? 0, color: '#6C63FF' },
+              { label: 'Grammar', value: progress?.avg_grammar_7d ?? 0, color: theme.primary },
               { label: 'Fluency', value: progress?.avg_fluency_7d ?? 0, color: '#3B82F6' },
             ].map(({ label, value, color }) => (
               <View key={label} style={dashStyles.scoreItem}>
                 <Text style={[dashStyles.scoreNum, { color }]}>{value.toFixed(1)}</Text>
-                <Text style={dashStyles.scoreLabel}>{label}</Text>
+                <Text style={[dashStyles.scoreLabel, { color: theme.textSecondary }]}>{label}</Text>
               </View>
             ))}
           </View>
         </View>
 
         {/* Chart */}
-        <View style={dashStyles.section}>
+        <View style={[dashStyles.section, { backgroundColor: theme.cardBackground, borderColor: theme.border, borderWidth: 1 }]}>
           <MiniChart data={progress?.scores_over_time ?? []} />
         </View>
 
         {/* Recent sessions */}
-        <View style={dashStyles.section}>
-          <Text style={dashStyles.sectionTitle}>Recent sessions</Text>
+        <View style={[dashStyles.section, { backgroundColor: theme.cardBackground, borderColor: theme.border, borderWidth: 1 }]}>
+          <Text style={[dashStyles.sectionTitle, { color: theme.text }]}>Recent sessions</Text>
           {sessions.length === 0 ? (
-            <Text style={dashStyles.emptyText}>No sessions yet. Start speaking!</Text>
+            <Text style={[dashStyles.emptyText, { color: theme.textSecondary }]}>No sessions yet. Start speaking!</Text>
           ) : (
             sessions.slice(0, 10).map((s) => (
-              <View key={s.id} style={dashStyles.sessionRow}>
+              <View key={s.id} style={[dashStyles.sessionRow, { borderBottomColor: theme.border }]}>
                 <View>
-                  <Text style={dashStyles.sessionDate}>
+                  <Text style={[dashStyles.sessionDate, { color: theme.text }]}>
                     {new Date(s.created_at).toLocaleDateString('en-US', {
                       month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                     })}
                   </Text>
-                  <Text style={dashStyles.sessionMsgs}>
+                  <Text style={[dashStyles.sessionMsgs, { color: theme.textSecondary }]}>
                     {s.messages?.length ?? 0} messages
                   </Text>
                 </View>
@@ -182,7 +189,7 @@ export default function DashboardScreen() {
                   <Text style={[dashStyles.sessionScore, { color: '#10B981' }]}>
                     {s.overall_score?.toFixed(1)}
                   </Text>
-                  <Text style={dashStyles.sessionScoreLabel}>/ 10</Text>
+                  <Text style={[dashStyles.sessionScoreLabel, { color: theme.textSecondary }]}>/ 10</Text>
                 </View>
               </View>
             ))

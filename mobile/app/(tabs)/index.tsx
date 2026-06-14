@@ -27,7 +27,10 @@ interface ScoreResult {
   feedback_tips: string[];
 }
 
+import { useTheme } from '../../context/ThemeContext';
+
 export default function VoiceScreen() {
+  const { theme } = useTheme();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<ScoreResult | null>(null);
@@ -75,10 +78,10 @@ export default function VoiceScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Speaking Agent</Text>
-        <Text style={styles.subtitle}>Your AI English Coach</Text>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Text style={[styles.title, { color: theme.text }]}>Speaking Agent</Text>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Your AI English Coach</Text>
       </View>
 
       <ScrollView
@@ -89,8 +92,8 @@ export default function VoiceScreen() {
       >
         {messages.length === 0 && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Tap the button and start speaking.</Text>
-            <Text style={styles.emptyHint}>Your coach will respond and score you.</Text>
+            <Text style={[styles.emptyText, { color: theme.text }]}>Tap the button and start speaking.</Text>
+            <Text style={[styles.emptyHint, { color: theme.textSecondary }]}>Your coach will respond and score you.</Text>
           </View>
         )}
 
@@ -99,13 +102,15 @@ export default function VoiceScreen() {
             key={msg.id}
             style={[
               styles.bubble,
-              msg.role === 'user' ? styles.bubbleUser : styles.bubbleCoach,
+              msg.role === 'user'
+                ? [styles.bubbleUser, { backgroundColor: theme.primary }]
+                : [styles.bubbleCoach, { backgroundColor: theme.cardBackground, borderColor: theme.border, borderWidth: 1 }],
             ]}
           >
             <View style={styles.messageRow}>
               <Text style={[
                 styles.bubbleText,
-                msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextCoach,
+                msg.role === 'user' ? styles.bubbleTextUser : [styles.bubbleTextCoach, { color: theme.text }],
                 msg.audioUri ? { marginRight: 8 } : null,
               ]}>
                 {msg.text}
@@ -128,11 +133,11 @@ export default function VoiceScreen() {
         <FeedbackCard score={score} onDismiss={() => setShowFeedback(false)} />
       )}
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, { backgroundColor: theme.cardBackground, borderTopColor: theme.border }]}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6C63FF" />
-            <Text style={styles.loadingText}>Coach is thinking...</Text>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Coach is thinking...</Text>
           </View>
         ) : (
           <RecordButton onRecordingComplete={handleRecordingComplete} disabled={loading} />
