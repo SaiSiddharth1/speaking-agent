@@ -4,8 +4,8 @@
  * Handles communication with the POST /api/conversation/respond endpoint.
  * Sends audio + conversation history as multipart/form-data.
  * Receives JSON with reply_text, audio_base64, and updated_history.
- */
-
+ */import * as FileSystem from 'expo-file-system';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from './api';
 
 export interface Message {
@@ -31,36 +31,26 @@ export async function sendAudioMessage(
   audioUri: string,
   history: Message[]
 ): Promise<ConversationResponse> {
-  const formData = new FormData();
+  const token = await AsyncStorage.getItem('access_token');
 
-  // React Native FormData requires this specific object shape for file uploads
-  formData.append('file', {
-    uri: audioUri,
-    type: 'audio/m4a',
-    name: 'recording.m4a',
-  } as any);
-
-  // Send conversation history as a JSON string field
-  formData.append('conversation_history', JSON.stringify(history));
-
-  // IMPORTANT: Do NOT set Content-Type header manually.
-  // Let fetch set multipart/form-data with the correct boundary automatically.
-  const response = await fetch(`${API_BASE_URL}/api/conversation/respond`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    let errorDetail = 'Voice conversation failed';
-    try {
-      const errData = await response.json();
-      errorDetail = errData.detail || errorDetail;
-    } catch (_) {
-      errorDetail = await response.text();
+  const response = await FileSystem.uploadAsync(
+    `${API_BASE_URL}/api/conversation/respond`,
+    audioUri,
+    {
+      fieldName: 'file',
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      parameters: {
+        conversation_history: JSON.stringify(history),
+      },
     }
-    throw new Error(errorDetail);
+  );
+
+  if (response.status !== 200) {
+    throw new Error(response.body || 'Failed to upload audio');
   }
 
-  const data: ConversationResponse = await response.json();
+  const data: ConversationResponse = JSON.parse(response.body);
   return data;
 }
