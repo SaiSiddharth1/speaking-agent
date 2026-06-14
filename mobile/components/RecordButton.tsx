@@ -35,6 +35,16 @@ export default function RecordButton({ onRecordingComplete, disabled }: RecordBu
 
   const startRecording = async () => {
     try {
+      // Safety cleanup if there's any existing recording reference
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {
+          // Ignore if already stopped
+        }
+        recordingRef.current = null;
+      }
+
       const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
         Alert.alert('Permission needed', 'Microphone access is required.');
@@ -55,7 +65,7 @@ export default function RecordButton({ onRecordingComplete, disabled }: RecordBu
       startPulse();
     } catch (err) {
       console.error('Start recording error:', err);
-      Alert.alert('Error', 'Could not start recording.');
+      Alert.alert('Error', 'Could not start recording. Please try restarting the app.');
     }
   };
 
